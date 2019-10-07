@@ -174,7 +174,7 @@ func (scene *SceneGame) updateGopherPos(idx int, posX float32, sprite *objects.G
 	sprite.MoveTo(pos)
 }
 
-func (scene *SceneGame) calcGopherSpeedAndDistance(dt float32, idx int, playerInfo *events.PlayerInfo) float32 {
+func (scene *SceneGame) calcGopherSpeedAndDistance(dt float32, idx int, playerInfo *events.PlayerInfoWithTimes) float32 {
 	if playerInfo.Speed == 0 {
 		return 0
 	}
@@ -188,8 +188,16 @@ func (scene *SceneGame) calcGopherSpeedAndDistance(dt float32, idx int, playerIn
 	}
 
 	if playerInfo.Speed > 0 {
-		delta := playerInfo.Speed * dt
-		playerInfo.Distance += delta
+		var delta float32
+		if idx == GlobalData.PlayersOurIdx {
+			delta = playerInfo.Speed * dt
+			playerInfo.Distance += delta
+		} else {
+			oldPos := playerInfo.Distance
+			newPos := GlobalData.PredictPlayerDistance(playerInfo)
+			delta = newPos - oldPos
+		}
+
 		return delta
 	}
 	return 0
@@ -216,7 +224,7 @@ func (scene *SceneGame) updateOurGopherPos(dt float32) {
 		return
 	}
 
-	delta := scene.calcGopherSpeedAndDistance(dt, idx, &playerInfo.PlayerInfo)
+	delta := scene.calcGopherSpeedAndDistance(dt, idx, playerInfo)
 
 	if pos.X < W/2 {
 		// в самом начале пути, нужно доехать до середины экрана, при этом дорога еще не движется
@@ -255,14 +263,19 @@ func (scene *SceneGame) isFinished(playerInfo *events.PlayerInfo) bool {
 func (scene *SceneGame) updateOtherGopherPos(dt float32, idx int) {
 	playerInfo := &GlobalData.Players[idx]
 
-	delta := scene.calcGopherSpeedAndDistance(dt, idx, &playerInfo.PlayerInfo)
-	distanceDiff := playerInfo.Distance - GlobalData.Players[GlobalData.PlayersOurIdx].Distance
+	oldOtherGopherDistance := playerInfo.Distance
+	curOurGopherDistance := GlobalData.Players[GlobalData.PlayersOurIdx].Distance
+
+	delta := scene.calcGopherSpeedAndDistance(dt, idx, playerInfo)
+
+	distanceDiff := oldOtherGopherDistance - curOurGopherDistance
+
+	ourGopherPosX := scene.gophers[GlobalData.PlayersOurIdx].Pos().X
+	otherGopher := scene.gophers[idx]
 
 	distanceDiff = (delta + distanceDiff) * GlobalData.GetPixelsPerStep()
 
-	gopher := scene.gophers[idx]
-	ourGopherPosX := scene.gophers[GlobalData.PlayersOurIdx].Pos().X
-	scene.updateGopherPos(idx, ourGopherPosX+distanceDiff, gopher)
+	scene.updateGopherPos(idx, ourGopherPosX+distanceDiff, otherGopher)
 }
 
 func (scene *SceneGame) Draw(dt float32) {

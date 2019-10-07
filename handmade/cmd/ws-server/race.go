@@ -44,6 +44,12 @@ func (race *Race) Join(ev events.EventJoin) (full bool) {
 		return false
 	}
 
+	for i := range race.players {
+		if race.players[i].Id == ev.PlayerId {
+			return false
+		}
+	}
+
 	var playerInfo events.PlayerInfoWithTimes
 	playerInfo.Name = ev.PlayerName
 	playerInfo.Id = ev.PlayerId
